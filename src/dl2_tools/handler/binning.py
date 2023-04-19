@@ -4,14 +4,22 @@ import astropy.units as u
 from ctapipe.core import Component
 from ctapipe.core.traits import List, Int
 
-from .data_lists import (
-    PointSourceSignalSetList,
-)
+from .data_lists import PointSourceSignalSetList, DiffuseSignalSetList
 
 
 class IRFBinning(Component):
+    """
+    Binning for a given observation as gammapy.MapAxis.
+        Created axes are:
 
-    E_true_bins = List(
+        -true energy
+        -energy migration relative to the true energy
+        -signal field-of-view offset
+        -background field-of-view offset
+        -distance from true direction for psf
+    """
+
+    energy_true_bins = List(
         default_value=[0.01 * u.TeV, 200 * u.TeV, 50],
         help="Emin, Emax and number of bins",
     ).tag(config=True)
@@ -37,11 +45,37 @@ class IRFBinning(Component):
     ).tag(config=True)
 
     def __init__(self, observation, config=None, parent=None):
+        """
+        Initialize the binning for a given observation as gammapy.MapAxis.
+        Created axes are:
+
+        -true energy
+        -energy migration relative to the true energy
+        -signal field-of-view offset
+        -background field-of-view offset
+        -distance from true direction for psf
+
+        Parameters
+        ----------
+        observation : observation_handler.ObservationHandler
+            An observation, either diffuse or point source
+        config: traitlets.loader.Config
+            Configuration specified by config file or cmdline arguments.
+            Used to set traitlet values.
+            This is mutually exclusive with passing a ``parent``.
+        parent: ctapipe.core.Component or ctapipe.core.Tool
+            Parent of this component in the configuration hierarchy,
+            this is mutually exclusive with passing ``config``
+        """
 
         super().__init__(config=config, parent=parent)
 
         self.energy_true = MapAxis(
-            np.geomspace(self.E_true_bins[0], self.E_true_bins[1], self.E_true_bins[2]),
+            np.geomspace(
+                self.energy_true_bins[0],
+                self.energy_true_bins[1],
+                self.energy_true_bins[2],
+            ),
             interp="log",
             name="true_energy",
             node_type="edges",
@@ -71,11 +105,35 @@ class IRFBinning(Component):
     def make_offset_bins_from_observation(
         self, observation, N_sig_bins=10, N_bkg_bins=10
     ):
+        """
+        From an observation, generate field-of-view offset bins for both signal and background
+
+        Parameters
+        ----------
+        observation : observation_handler.ObservationHandler
+            An observation, either diffuse or point source
+        N_sig_bins : int, optional
+            Number of signal bins, by default 10
+        N_bkg_bins : int, optional
+            Number of background bins, by default 10
+        """
         self._make_signal_offset_bins_from_observation(observation, N_sig_bins)
-        if len(observation.background) != 0:
+        if (
+            len(observation.background) != 0
+        ):  # There needs to be a background to make a binning for the background
             self._make_background_offset_bins_from_observation(observation, N_bkg_bins)
 
     def _make_signal_offset_bins_from_observation(self, observation, N_sig_bins):
+        """
+        From a given observation, generate field-of-view offset bins for the signal of the observation
+
+        Parameters
+        ----------
+        observation : observation_handler.ObservationHandler
+            An observation, either diffuse or point source
+        N_sig_bins : int
+            Number of signal bins
+        """
 
         if isinstance(observation.signal, PointSourceSignalSetList):
 
@@ -89,6 +147,26 @@ class IRFBinning(Component):
 
     @staticmethod
     def make_diffuse_signal_offset_bins(diffuse_signal_list, N_sig_bins):
+        """
+        From a DiffuseSignalSetList, generate an axis
+        with N_sig_bins equal-sized field-of-view offset bins.
+
+        Parameters
+        ----------
+        diffuse_signal_list : data_lists.DiffuseSignalSetList
+            List of dl2 datasets from point-source simulations
+        N_sig_bins : Int
+            Number of field-of-view offset bins
+
+        Returns
+        -------
+        gammapy.MapAxis
+            An axis with field of view offset bins
+        """
+
+        assert isinstance(
+            diffuse_signal_list, DiffuseSignalSetList
+        ), "```diffuse_signal_list``` must be an instance of ```DiffuseSignalSetList```."
         radii = diffuse_signal_list.get_radii()
 
         max_offset = np.max(radii)
@@ -103,6 +181,26 @@ class IRFBinning(Component):
 
     @staticmethod
     def make_ps_signal_offset_bins(ps_signal_list):
+        """
+        From a PointSourceSignalSetList, generate an axis with field-of-view offset bins.
+        This is complicated because the lowest bin edge not be a negative value.
+        As a consequence of this, the bin centers are not necessarily on the offsets of the datasets,
+        but each bin contains only one dataset.
+
+        Parameters
+        ----------
+        ps_signal_list : data_lists.PointSourceSignalSetList
+            List of dl2 datasets from point-source simulations
+
+        Returns
+        -------
+        gammapy.MapAxis
+            An axis with field of view offset bins
+        """
+
+        assert isinstance(
+            ps_signal_list, PointSourceSignalSetList
+        ), "```ps_signal_list``` must be an instance of ```PointSourceSignalSetList```."
 
         offsets = ps_signal_list.get_offsets()
 
@@ -179,6 +277,16 @@ class IRFBinning(Component):
         return signal_offset
 
     def _make_background_offset_bins_from_observation(self, observation, N_bkg_bins):
+        """
+        Generate field-of-view offset bins for the background of an observation
+
+        Parameters
+        ----------
+        observation : observation_handler.ObservationHandler
+            An observation, either diffuse or point source
+        N_bkg_bins : int
+            Number of background bins
+        """
 
         radii = observation.background.get_radii()
 

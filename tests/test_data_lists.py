@@ -1,2 +1,2 @@
 import pytest
-from ..src.dl2_tools.handler.data_lists import DataList
+from dl2_tools.handler import data_lists
