@@ -1,9 +1,3 @@
-# Ideas:
-
-# Tool to optimize cuts. Could be abstract and have gammapy/pyirf children
-
-# The gammapy child would then make use of the irf_maker to create irfs
-
 import numpy as np
 from copy import deepcopy
 from ..handler.interpolated_cuts import InterpolatedCut
@@ -12,17 +6,15 @@ import operator
 import astropy.units as u
 from pyirf.cuts import calculate_percentile_cut, weighted_quantile
 from pyirf.cut_optimization import optimize_gh_cut
-from ..handler.sim_datasets import PointSourceDataset, DiffuseDataset
 from ..handler.observation_handler import (
     PointSourceObservationHandler,
-    DiffuseObservationHandler,
 )
 from astropy import table
 from ..handler.data_lists import DiffuseSetList, PointSourceSetList
 from ctapipe.core import Component
 from ..handler.binning import IRFBinning
 from traitlets import Float
-from ctapipe.core.traits import List, Unicode, classes_with_traits, Bool, flag, Int
+from ctapipe.core.traits import List, Unicode, Int
 
 
 class CutCalculator(Component):

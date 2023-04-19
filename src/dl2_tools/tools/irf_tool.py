@@ -2,9 +2,8 @@
 Generate IRFs from dl2 data
 """
 # pylint: disable=W0201
-import sys
+
 import os
-from tqdm.auto import tqdm
 
 from ctapipe.core import Tool, traits
 from ..maker.irf_maker import IRFMaker

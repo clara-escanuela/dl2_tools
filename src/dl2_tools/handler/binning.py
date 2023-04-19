@@ -6,9 +6,6 @@ from ctapipe.core.traits import List, Int
 
 from .data_lists import (
     PointSourceSignalSetList,
-    DiffuseSignalSetList,
-    BackgroundSetList,
-    DataList,
 )
 
 

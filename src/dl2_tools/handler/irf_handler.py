@@ -3,7 +3,6 @@
 
 import os
 import astropy.units as u
-from .binning import IRFBinning
 
 
 class IRFHandler:

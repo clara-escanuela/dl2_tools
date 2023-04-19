@@ -99,7 +99,7 @@ class ROCMaker(Component):
     def _calc_ps_roc(self, observation):
         purities = np.empty((len(self.loss_vector), len(observation.signal)))
         for i, loss in enumerate(self.loss_vector):
-            self.gh_cut_calculator.fill_value = 1 - loss
+            self.gh_cut_calculator.fill_value = loss
             self.gh_cut_calculator.percentile = 100 * (1 - loss)
 
             gh_cut = self.gh_cut_calculator(
@@ -144,7 +144,7 @@ class ROCMaker(Component):
         purities = np.empty((len(self.loss_vector), len(diff_offset_axis.center)))
 
         for i, loss in enumerate(self.loss_vector):
-            self.gh_cut_calculator.fill_value = 1 - loss
+            self.gh_cut_calculator.fill_value = loss
             self.gh_cut_calculator.percentile = 100 * (1 - loss)
 
             gh_cut = self.gh_cut_calculator(
