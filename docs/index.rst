@@ -1,9 +1,9 @@
-.. my_package documentation master file, created by
+.. dl2_tools documentation master file, created by
    sphinx-quickstart on Tue Mar 22 13:13:41 2022.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to my_package's documentation!
+Welcome to the dl2_tools documentation!
 ======================================
 
 .. toctree::
@@ -22,7 +22,7 @@ Usage
 Installation
 ------------
 
-To use `my_package` you need to install X, Y and Z. 
+To use `dl2_tools` you need to install X, Y and Z. 
 
 
 .. _code:
@@ -32,7 +32,7 @@ Code
 
 Here is an example of describing the use of your function.
 
-To add one to a number you can use the ``my_package.add_one()`` function:
+To add one to a number you can use the ``dl2_tools.add_one()`` function:
 
 .. py:function:: my_package.add_one(number)
 
@@ -64,4 +64,4 @@ Indices and tables
  The following will add the signature of the individual functions and pull
  their docstrings.
 
-.. automodapi:: my_package.example
+.. automodapi:: dl2_tools.example
