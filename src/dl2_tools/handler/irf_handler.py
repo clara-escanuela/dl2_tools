@@ -40,6 +40,30 @@ class IRFHandler:
         # Binning
         self.binning = binning
 
+    def save_bkg_model_fits(self, savedir, suffix="", overwrite=False):
+        assert (
+            self.bkg_model is not None
+        ), "You first need to set a background model before saving it"
+
+        if not os.path.exists(os.path.join(savedir, "bkg_model/")):
+            os.mkdir(os.path.join(savedir, "bkg_model/"))
+
+        self.bkg_model.write(
+            os.path.join(
+                savedir,
+                "bkg_model/bkg_reco_{}TeV_{}TeV_{}bins_fov_off_{}deg_{}deg_{}bins_{}.fits".format(
+                    self.binning.energy_reco.edges[0].to_value(u.TeV).round(2),
+                    self.binning.energy_reco.edges[-1].to_value(u.TeV).round(2),
+                    len(self.binning.energy_reco.center),
+                    self.binning.background_offset.edges[0].to_value(u.deg).round(2),
+                    self.binning.background_offset.edges[-1].to_value(u.deg).round(2),
+                    len(self.binning.background_offset.center),
+                    suffix,
+                ),
+            ),
+            overwrite=overwrite,
+        )
+
     def save_Aeff_fits(self, savedir, suffix="", overwrite=False):
 
         assert (

@@ -326,6 +326,8 @@ class IRFMakerTool(Tool):
 
         self.irfs.save_Edisp_fits(self.output_dir, overwrite=self.overwrite)
 
+        self.irfs.save_bkg_model_fits(self.output_dir, overwrite=self.overwrite)
+
         if self.save_plots:
 
             aeff_fig, aeff_ax = plt.subplots()

@@ -13,6 +13,7 @@ class IRFBinning(Component):
         Created axes are:
 
         -true energy
+        -reco energy
         -energy migration relative to the true energy
         -signal field-of-view offset
         -background field-of-view offset
@@ -20,6 +21,11 @@ class IRFBinning(Component):
     """
 
     energy_true_bins = List(
+        default_value=[0.01 * u.TeV, 200 * u.TeV, 50],
+        help="Emin, Emax and number of bins",
+    ).tag(config=True)
+
+    energy_reco_bins = List(
         default_value=[0.01 * u.TeV, 200 * u.TeV, 50],
         help="Emin, Emax and number of bins",
     ).tag(config=True)
@@ -80,6 +86,18 @@ class IRFBinning(Component):
             name="true_energy",
             node_type="edges",
         )
+
+        self.energy_reco = MapAxis(
+            np.geomspace(
+                self.energy_reco_bins[0],
+                self.energy_reco_bins[1],
+                self.energy_reco_bins[2],
+            ),
+            interp="log",
+            name="reco_energy",
+            node_type="edges",
+        )
+
         self.migration = MapAxis(
             np.geomspace(self.mig_bins[0], self.mig_bins[1], self.mig_bins[2]),
             interp="log",

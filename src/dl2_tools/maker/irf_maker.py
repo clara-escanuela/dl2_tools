@@ -8,11 +8,14 @@ from pyirf.irf import (
     effective_area_per_energy,
     effective_area_per_energy_and_fov,
     psf_table,
+    background_2d,
+    BACKGROUND_UNIT,
 )
 from pyirf.gammapy import (
     create_effective_area_table_2d,
     create_energy_dispersion_2d,
     create_psf_3d,
+    create_background_2d,
 )
 import astropy.units as u
 import numpy as np
@@ -46,9 +49,39 @@ class IRFMaker(Component):
             irfs.binning = self.binning
 
         if len(observation.background) != 0:
-            pass
+            irfs.bkg_model = self._make_background_model(observation.background)
 
         return irfs
+
+    def _make_background_model(self, background):
+
+        pyirf_bkg = u.Quantity(
+            np.zeros(
+                (
+                    len(self.binning.energy_reco.edges),
+                    len(
+                        self.binning.background_offset.edges,
+                    ),
+                )
+            )
+            * BACKGROUND_UNIT
+        )
+
+        for bkg in background:
+            pyirf_bkg += background_2d(
+                bkg.get_masked_events,
+                self.binning.energy_reco.edges,
+                self.binning.background_offset.edges,
+                bkg.obs_time,
+            )
+
+        gammapy_bkg = create_background_2d(
+            pyirf_bkg,
+            self.binning.energy_reco.edges,
+            self.binning.background_offset.edges,
+        )
+
+        return gammapy_bkg
 
     def _make_Edisps(self, signal):
 
