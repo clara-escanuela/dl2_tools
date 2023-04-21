@@ -59,8 +59,8 @@ class PercentileCutMakerTool(Tool):
     ).tag(config=True)
 
     aliases = {
-        "source-input": "PercentileCutMakerTool.ps_input_files",
-        "diffuse-input": "PercentileCutMakerTool.diffuse_input_file",
+        "input-type": "PercentileCutMakerTool.input_type",
+        "input-files": "PercentileCutMakerTool.input_files",
         ("o", "output"): "PercentileCutMakerTool.output_file",
         "geometry-reco": "PercentileCutMakerTool.geometry_reco",
         "energy-reco": "PercentileCutMakerTool.energy_reco",

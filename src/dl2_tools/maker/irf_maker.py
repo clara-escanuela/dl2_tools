@@ -29,9 +29,11 @@ class IRFMaker(Component):
     def __init__(self, config=None, parent=None) -> None:
         super().__init__(config=config, parent=parent)
 
-    def __call__(self, observation):
-
-        self.binning = IRFBinning(observation, parent=self)
+    def __call__(self, observation, binning=None):
+        if binning is None:
+            self.binning = IRFBinning(observation, parent=self)
+        else:
+            self.binning = binning
         # Check conditions on observations
 
         irfs = IRFHandler()

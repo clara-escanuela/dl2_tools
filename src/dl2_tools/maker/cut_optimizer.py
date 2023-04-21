@@ -227,7 +227,7 @@ class PercentileCutCalculator(CutCalculator):
     ).tag(config=True)
 
     percentile = Float(
-        help="Percentile to cut on",
+        help="Percentile to cut on. Always describes the percentage of events that are kept after the cut.",
         default_value=68,
     ).tag(config=True)
 
