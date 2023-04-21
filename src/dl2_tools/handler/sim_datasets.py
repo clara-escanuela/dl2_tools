@@ -175,6 +175,15 @@ class SimDataset(ABC):
                 self.add_cut(cut, offset_column)
 
     def add_cut(self, cut, offset_column):
+        """
+        Add a cut to the dataset.
+        Parameters
+        ----------
+        cut : dl2_tools.handler.InterpolatedCut
+            The InterpolatedCut to add
+        offset_column : str
+            Name of the offset column to use to evaluate the cut
+        """
 
         assert (
             cut.cut_column in self.events.keys()
@@ -186,11 +195,17 @@ class SimDataset(ABC):
         else:
             interp_cols = [offset_column]
         interp_array = []
-        for col in interp_cols:
+        for i, col in enumerate(interp_cols):
             if u.Quantity(self.events[col]).unit.is_equivalent(u.TeV):
                 interp_array.append(np.log10(self.events[col].to_value(u.TeV)))
             else:
-                interp_array.append(self.events[col])
+                if i == 0:
+                    # This is to assert that the offset column
+                    # is interpolated in units of deg
+                    interp_array.append(self.events[col].to_value(u.deg))
+                else:
+                    interp_array.append(self.events[col])
+
         interp_array = np.array(interp_array)
         if not cut.log_cut:
             cut_values = cut.cut_spline(interp_array.T)

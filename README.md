@@ -5,6 +5,7 @@ Its main functionalities include:
 - Calculate and apply g/h cuts
 - Calculate cuts on essentially all other variables
 - Calculate and plot irfs
+- Make ROC plots
 
 This can be done out of the box both with point-like and diffuse gamma ray simulations.
 

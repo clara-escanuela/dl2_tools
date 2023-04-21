@@ -32,7 +32,7 @@ class InterpolatedCut:
 
         self.cut_column = cut_column
 
-        bin_axes_points = (offset_axis.center,)
+        bin_axes_points = (offset_axis.center.to_value(u.deg),)
 
         if bin_axes is not None:
             self.bin_columns = [bin_axis.name for bin_axis in bin_axes]
@@ -118,12 +118,13 @@ class InterpolatedCut:
             fill_value,
         )
 
-    def to_cut_table(self, offset, bin_axis):
+    def to_cut_table(self, offset, bin_axis, cut_column_unit=None):
         assert len(self.bin_columns) == 1
 
         cut_table = QTable()
         cut_table["low"] = bin_axis.edges[:-1]
         cut_table["high"] = bin_axis.edges[1:]
+        cut_table["center"] = bin_axis.center
 
         if bin_axis.center.unit.is_equivalent(u.TeV):
             interp_values = np.log10(bin_axis.center.to_value(u.TeV))
@@ -137,7 +138,10 @@ class InterpolatedCut:
         else:
             cut_values = 10 ** self.cut_spline(interp_array.T)
 
-        cut_table["cut"] = cut_values
+        if cut_column_unit is None:
+            cut_table["cut"] = cut_values
+        else:
+            cut_table["cut"] = u.Quantity(cut_values * cut_column_unit)
 
         return cut_table
 

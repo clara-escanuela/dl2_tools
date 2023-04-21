@@ -10,7 +10,11 @@ from ..handler.observation_handler import (
     PointSourceObservationHandler,
 )
 from astropy import table
-from ..handler.data_lists import DiffuseSetList, PointSourceSetList
+from ..handler.data_lists import (
+    DiffuseSetList,
+    PointSourceSetList,
+    PointSourceSignalSetList,
+)
 from ctapipe.core import Component
 from ..handler.binning import IRFBinning
 from traitlets import Float
@@ -55,7 +59,9 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
     ).tag(config=True)
 
     max_bkg_radius = Float(
-        help="maximum bkg_radius to consider", default_value=1 * u.deg, allow_none=False
+        help="maximum bkg_radius to consider in degree",
+        default_value=1,
+        allow_none=False,
     ).tag(config=True)
 
     gh_cut_efficiency_params = List(
@@ -86,12 +92,27 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
 
         for bg in observation.background:
             assert (
-                bg.radius >= observation.signal.get_offsets()[-1] + self.max_bkg_radius
+                bg.radius
+                >= observation.signal.get_offsets()[-1] + self.max_bkg_radius * u.deg
             )
 
         background = deepcopy(observation.background)
         gh_cut_tabs = []
         theta_cut_tabs = []
+
+        self.theta_cut_calculator = PercentileCutCalculator()
+        self.theta_cut_calculator.cut_variable = "theta"
+        self.theta_cut_calculator.fill_value = 0.32
+        self.theta_cut_calculator.percentile = 68
+        self.theta_cut_calculator.bin_axes = [self.reco_energy_axis]
+        self.theta_cut_calculator.op = operator.le
+        self.theta_cut_calculator.cut_op = lambda x: x.to_value(u.deg)
+        self.theta_cut_calculator.min_value = 0.01
+        self.theta_cut_calculator.max_value = 0.5
+
+        self.init_gh_cut, self.coarse_theta_cut = self._calc_initial_cuts(
+            observation.signal
+        )
 
         for signal in deepcopy(observation.signal):
             gh_cut_tab, theta_cut_tab = self._calc_optimal_cut_single_offset_bin(
@@ -100,11 +121,7 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
             gh_cut_tabs.append(gh_cut_tab)
             theta_cut_tabs.append(theta_cut_tab)
 
-        signal_offset_axis = MapAxis(
-            nodes=observation.signal.get_offsets(),
-            interp="lin",
-            node_type="center",
-        )
+        signal_offset_axis = IRFBinning.make_ps_signal_offset_bins(observation.signal)
 
         gh_cut = InterpolatedCut.from_cut_tables(
             cut_tables=gh_cut_tabs,
@@ -134,46 +151,36 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
 
     def _calc_initial_cuts(self, signal):
 
-        initial_cut_calculator = PercentileCutCalculator()
-        initial_cut_calculator.self.cut_variable,
-        initial_cut_calculator.fill_value = 0.8
-        initial_cut_calculator.percentile = 100 * self.initial_cut_efficiency
-        initial_cut_calculator.bin_axes = None
-        initial_cut_calculator.op = self.op
-        initial_cut_calculator.cut_op = self.cut_op
+        initial_gh_cut_calculator = PercentileCutCalculator()
+        initial_gh_cut_calculator.cut_variable = self.cut_variable
+        initial_gh_cut_calculator.fill_value = 0.8
+        initial_gh_cut_calculator.percentile = 100 * self.initial_cut_efficiency
+        initial_gh_cut_calculator.bin_axes = None
+        initial_gh_cut_calculator.op = self.op
+        initial_gh_cut_calculator.cut_op = self.cut_op
 
-        initial_cut = initial_cut_calculator(signal, "true_source_fov_offset")
+        initial_gh_cut = initial_gh_cut_calculator(signal, "true_source_fov_offset")
 
         signal_after_init_cut = deepcopy(signal)
 
         signal_after_init_cut.add_cut(
-            initial_cut, offet_column="true_source_fov_offset"
+            initial_gh_cut, offset_column="true_source_fov_offset"
         )
-
-        self.theta_cut_calculator = PercentileCutCalculator()
-        self.theta_cut_calcualtor.cut_variable = "theta"
-        self.theta_cut_calcualtor.fill_value = 0.32 * u.deg
-        self.theta_cut_calcualtor.percentile = 68
-        self.theta_cut_calcualtor.bin_axes = [self.reco_energy_axis]
-        self.theta_cut_calculator.op = operator.le
-        self.theta_cut_calcualtor.cut_op = lambda x: x
-        self.theta_cut_calcualtor.min_value = 0.01 * u.deg
-        self.theta_cut_calcualtor.max_value = 0.5 * u.deg
 
         coarse_theta_cut = self.theta_cut_calculator(
             signal_after_init_cut, "true_source_fov_offset"
         )
 
-        return initial_cut, coarse_theta_cut
+        return initial_gh_cut, coarse_theta_cut
 
     def _calc_optimal_cut_single_offset_bin(self, signal, background):
 
-        init_cut, coarse_theta_cut = self._calc_initial_cuts(signal)
-
         offset_axis = MapAxis(
-            nodes=signal.offset,
+            nodes=u.Quantity(
+                [signal.offset - 0.01 * u.deg, signal.offset + 0.01 * u.deg]
+            ),
             interp="lin",
-            node_type="center",
+            node_type="edges",
             name="true_source_fov_offset",
         )
 
@@ -182,16 +189,17 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
         )
 
         _, gh_cuts_table = optimize_gh_cut(
-            deepcopy(signal),
+            deepcopy(signal).get_masked_events(),
             background_events,
             reco_energy_bins=self.reco_energy_axis.edges,
             gh_cut_efficiencies=self.gh_cut_efficiencies,
             op=operator.ge,
-            theta_cuts=coarse_theta_cut.to_cut_table(
-                signal.offset, bin_axis=self.reco_energy_axis
+            theta_cuts=self.coarse_theta_cut.to_cut_table(
+                signal.offset, bin_axis=self.reco_energy_axis, cut_column_unit=u.deg
             ),
             alpha=1,
-            fov_offset_max=self.max_bkg_radius,
+            fov_offset_max=signal.offset + self.max_bkg_radius * u.deg,
+            fov_offset_min=max(signal.offset - self.max_bkg_radius * u.deg, 0 * u.deg),
         )
 
         gh_cut = InterpolatedCut.from_cut_tables(
@@ -207,10 +215,10 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
 
         signal_after_final_cut = deepcopy(signal)
 
-        signal_after_final_cut.add_cut(gh_cut, offet_column="true_source_fov_offset")
+        signal_after_final_cut.add_cut(gh_cut, offset_column="true_source_fov_offset")
 
         fine_theta_cut = self.theta_cut_calculator(
-            signal_after_final_cut, "true_source_fov_offset"
+            PointSourceSignalSetList([signal_after_final_cut]), "true_source_fov_offset"
         )
 
         fine_theta_cut_table = fine_theta_cut.to_cut_table(
@@ -331,21 +339,12 @@ class PercentileCutCalculator(CutCalculator):
                         1 - self.percentile / 100,
                     )
 
-                    # np.nanpercentile(
-                    #    self.cut_op(masked_events[self.cut_variable]),
-                    #    100 - self.percentile,
-                    # )
                 elif self.op(-1, 1):
                     cut_value = weighted_quantile(
                         self.cut_op(masked_events[self.cut_variable]),
                         masked_events["weight"],
                         self.percentile / 100,
                     )
-
-                    # np.nanpercentile(
-                    #    self.cut_op(masked_events[self.cut_variable]),
-                    #    self.percentile,
-                    # )
 
                 cut_values.append(cut_value)
 
@@ -442,20 +441,13 @@ class PercentileCutCalculator(CutCalculator):
                         events["weight"],
                         1 - self.percentile / 100,
                     )
-                    # np.nanpercentile(
-                    #    self.cut_op(events[self.cut_variable]),
-                    #    100 - self.percentile,
-                    # )
+
                 elif self.op(-1, 1):
                     cut_value = weighted_quantile(
                         self.cut_op(events[self.cut_variable]),
                         events["weight"],
                         self.percentile / 100,
                     )
-                    # np.nanpercentile(
-                    #    self.cut_op(events[self.cut_variable]),
-                    #    self.percentile,
-                    # )
 
                 cut_values.append(cut_value)
 
