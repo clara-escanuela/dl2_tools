@@ -387,7 +387,7 @@ class IRFMakerTool(Tool):
             plt.savefig(os.path.join(self.output_dir, "ROC_plot.pdf"))
 
             auc_fig, auc_ax = plt.subplots()
-            self.roc_maker.integrate_auc(auc_ax)
+            self.roc_maker.plot_auc(auc_ax)
             plt.savefig(os.path.join(self.output_dir, "AUC_plot.pdf"))
 
 

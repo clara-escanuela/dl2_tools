@@ -209,13 +209,17 @@ class ROCMaker(Component):
             ax.set_ylabel("Purity")
             ax.legend()
 
-    def integrate_auc(self, ax):
+    def integrate_auc(self):
         aucs = np.empty(len(self.binning.signal_offset.center))
         for j in range(len(self.binning.signal_offset.center)):
             aucs[j] = np.sum(
                 (self.loss_vector[1] - self.loss_vector[0]) * self.purities[:, j]
             )
 
+        return aucs
+
+    def plot_auc(self, ax):
+        aucs = self.integrate_aucs()
         ax.scatter(self.binning.signal_offset.center, aucs, marker="d")
         ax.set_xlabel("FoV offset")
         ax.set_ylabel("AUC")
