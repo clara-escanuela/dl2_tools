@@ -58,9 +58,9 @@ class IRFMaker(Component):
         pyirf_bkg = u.Quantity(
             np.zeros(
                 (
-                    len(self.binning.energy_reco.edges),
+                    len(self.binning.energy_reco.center),
                     len(
-                        self.binning.background_offset.edges,
+                        self.binning.background_offset.center,
                     ),
                 )
             )
@@ -68,12 +68,13 @@ class IRFMaker(Component):
         )
 
         for bkg in background:
-            pyirf_bkg += background_2d(
-                bkg.get_masked_events,
+            single_bkg = background_2d(
+                bkg.get_masked_events(),
                 self.binning.energy_reco.edges,
                 self.binning.background_offset.edges,
                 bkg.obs_time,
             )
+            pyirf_bkg += single_bkg
 
         gammapy_bkg = create_background_2d(
             pyirf_bkg,

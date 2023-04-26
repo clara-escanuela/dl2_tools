@@ -219,7 +219,7 @@ class ROCMaker(Component):
         return aucs
 
     def plot_auc(self, ax):
-        aucs = self.integrate_aucs()
+        aucs = self.integrate_auc()
         ax.scatter(self.binning.signal_offset.center, aucs, marker="d")
         ax.set_xlabel("FoV offset")
         ax.set_ylabel("AUC")

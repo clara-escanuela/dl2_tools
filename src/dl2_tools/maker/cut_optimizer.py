@@ -48,8 +48,8 @@ class CutCalculator(Component):
 
 class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
 
-    E_reco_bins = List(
-        default_value=[0.01 * u.TeV, 200 * u.TeV, 20],
+    energy_reco_bins = List(
+        default_value=[0.01, 200, 20],
         help="Emin, Emax and number of bins in reco energy",
     ).tag(config=True)
 
@@ -64,6 +64,12 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
         allow_none=False,
     ).tag(config=True)
 
+    alpha = Float(
+        help="Ratio of OFF to ON region",
+        default_value=1,
+        allow_none=False,
+    ).tag(config=True)
+
     gh_cut_efficiency_params = List(
         default_value=[0.1, 0.8, 71],
         help="min, max and number of bins",
@@ -73,7 +79,11 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
         super().__init__(config=config, parent=parent)
 
         self.reco_energy_axis = MapAxis(
-            np.geomspace(self.E_reco_bins[0], self.E_reco_bins[1], self.E_reco_bins[2]),
+            np.geomspace(
+                self.energy_reco_bins[0] * u.TeV,
+                self.energy_reco_bins[1] * u.TeV,
+                self.energy_reco_bins[2],
+            ),
             interp="log",
             name="reco_energy",
             node_type="edges",
@@ -141,7 +151,7 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
             bin_axis_name="reco_energy",
             cut_column="theta",
             op=operator.le,
-            cut_op=lambda x: x,
+            cut_op=lambda x: x.to_value(u.deg),
             method="nearest",
             bounds_error=False,
             fill_value=None,
@@ -197,7 +207,7 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
             theta_cuts=self.coarse_theta_cut.to_cut_table(
                 signal.offset, bin_axis=self.reco_energy_axis, cut_column_unit=u.deg
             ),
-            alpha=1,
+            alpha=self.alpha,
             fov_offset_max=signal.offset + self.max_bkg_radius * u.deg,
             fov_offset_min=max(signal.offset - self.max_bkg_radius * u.deg, 0 * u.deg),
         )
@@ -222,7 +232,7 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
         )
 
         fine_theta_cut_table = fine_theta_cut.to_cut_table(
-            signal.offset, self.reco_energy_axis
+            signal.offset, self.reco_energy_axis, cut_column_unit=u.deg
         )
 
         return gh_cuts_table, fine_theta_cut_table

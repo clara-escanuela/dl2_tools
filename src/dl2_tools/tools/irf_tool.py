@@ -60,6 +60,12 @@ class IRFMakerTool(Tool):
         help="Files of pickled InterpolatedCuts",
     ).tag(config=True)
 
+    signal_cuts_files = List(
+        traits.Path(exists=True, directory_ok=False),
+        default_value=[],
+        help="Files of pickled InterpolatedCuts applied only to the signal component",
+    ).tag(config=True)
+
     signal_type = Unicode(
         default_value="PointSource",
         help="Type of observation",
@@ -293,14 +299,23 @@ class IRFMakerTool(Tool):
             self.observation.background.reweight_to(background_spectrum)
 
         cuts = []
+        signal_cuts = []
 
         for cut_file in self.cuts_files:
             cuts.append(pickle.load(open(cut_file, "rb")))
+        
+        for signal_cut_file in self.signal_cuts_files:
+            signal_cuts.append(pickle.load(open(signal_cut_file, "rb")))
 
         if len(cuts) > 0:
-            self.observation.set_signal_cuts(cuts)
+
+            self.observation.set_signal_cuts(cuts,"reco_source_fov_offset")
             if len(self.background_input_files) > 0:
-                self.observation.set_background_cuts(cuts)
+                self.observation.set_background_cuts(cuts,"reco_source_fov_offset")
+
+        if len(signal_cuts) > 0:
+
+            self.observation.set_signal_cuts(signal_cuts,"true_source_fov_offset")
 
         self.irf_maker = IRFMaker(parent=self)
         if self.make_roc:
