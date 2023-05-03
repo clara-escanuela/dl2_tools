@@ -14,6 +14,7 @@ from astropy.coordinates.angle_utilities import angular_separation
 from gammapy.maps import MapAxis
 from ..handler.interpolated_cuts import InterpolatedCut
 import operator
+from pyirf.sensitivity import estimate_background
 
 
 class ROCMaker(Component):
@@ -28,6 +29,11 @@ class ROCMaker(Component):
     radius_percentile = Float(
         help="Percentile of events to keep after radial cut for pointsource observation",
         default_value=68,
+    ).tag(config=True)
+
+    bkg_ring_size = Float(
+        help="Radius of FoV offset ring to consider for background estimation in deg",
+        default_value=1,
     ).tag(config=True)
 
     n_reco_energy_bins = Int(
@@ -76,18 +82,18 @@ class ROCMaker(Component):
             self.radius_cut_calculator = PercentileCutCalculator()
             self.radius_cut_calculator.cut_variable = "theta"
             self.radius_cut_calculator.op = operator.le
-            self.radius_cut_calculator.cut_op = lambda x: x.to_value(u.rad)
-            self.radius_cut_calculator.fill_value = np.deg2rad(0.1)
+            self.radius_cut_calculator.cut_op = lambda x: x.to_value(u.deg)
+            self.radius_cut_calculator.fill_value = 0.1
             self.radius_cut_calculator.percentile = self.radius_percentile
             self.radius_cut_calculator.bin_axes = reco_energy_axis
 
-            self.purities = self._calc_ps_roc(
+            self.purities, self.sig_evt_rates, self.bkg_evt_rates = self._calc_ps_roc(
                 observation,
             )
 
         elif isinstance(observation, DiffuseObservationHandler):
 
-            self.purities = self._calc_ps_diff(
+            self.purities, self.sig_evt_rates, self.bkg_evt_rates = self._calc_ps_diff(
                 observation,
             )
 
@@ -98,6 +104,8 @@ class ROCMaker(Component):
 
     def _calc_ps_roc(self, observation):
         purities = np.empty((len(self.loss_vector), len(observation.signal)))
+        sig_evt_rates = np.empty((len(self.loss_vector), len(observation.signal)))
+        bkg_evt_rates = np.empty((len(self.loss_vector), len(observation.signal)))
         for i, loss in enumerate(self.loss_vector):
             self.gh_cut_calculator.fill_value = loss
             self.gh_cut_calculator.percentile = 100 * (1 - loss)
@@ -123,6 +131,23 @@ class ROCMaker(Component):
                 sig_evt_rate = np.sum(signal.get_masked_events()["weight"])
                 bkg_evt_rate = 0
                 for background in rate_observation.background:
+
+                    bg_hist_table = estimate_background(
+                        events=background.get_masked_events(),
+                        reco_energy_bins=self.radius_cut_calculator.bin_axes[0].edges,
+                        theta_cuts=radius_cut.to_cut_table(
+                            offset=0.0,
+                            bin_axis=self.radius_cut_calculator.bin_axes[0],
+                            cut_column_unit=u.deg,
+                        ),
+                        alpha=1,
+                        fov_offset_min=max(
+                            0.0 * u.deg, signal.offset - self.bkg_ring_size * u.deg
+                        ),
+                        fov_offset_max=signal.offset + self.bkg_ring_size * u.deg,
+                    )
+                    bkg_evt_rate += np.sum(bg_hist_table["n_weighted"])
+                    """
                     rate_background = deepcopy(background)
                     rate_background.events["theta"] = angular_separation(
                         signal.source_position.az,
@@ -132,16 +157,21 @@ class ROCMaker(Component):
                     )
 
                     rate_background.add_cut(radius_cut, "reco_source_fov_offset")
-                    bkg_evt_rate += np.sum(
-                        rate_background.get_masked_events()["weight"]
-                    )
+                    """
+                    # bkg_evt_rate += np.sum(
+                    #    rate_background.get_masked_events()["weight"]
+                    # )
                 purities[i, j] = sig_evt_rate / (sig_evt_rate + bkg_evt_rate)
+                sig_evt_rates[i, j] = sig_evt_rate
+                bkg_evt_rates[i, j] = bkg_evt_rate
 
-        return purities
+        return purities, sig_evt_rates, bkg_evt_rates
 
     def _calc_roc_diff(self, observation):
         diff_offset_axis = self.binning.signal_offset
         purities = np.empty((len(self.loss_vector), len(diff_offset_axis.center)))
+        sig_evt_rates = np.empty((len(self.loss_vector), len(diff_offset_axis.center)))
+        bkg_evt_rates = np.empty((len(self.loss_vector), len(diff_offset_axis.center)))
 
         for i, loss in enumerate(self.loss_vector):
             self.gh_cut_calculator.fill_value = loss
@@ -196,14 +226,16 @@ class ROCMaker(Component):
                     rad_observation.signal[0].get_masked_events()["weight"]
                 )
                 purities[i, j] = sig_evt_rate / (sig_evt_rate + bkg_evt_rate)
+                sig_evt_rates[i, j] = sig_evt_rate
+                bkg_evt_rates[i, j] = bkg_evt_rate
 
-        return purities
+        return purities, sig_evt_rates, bkg_evt_rates
 
-    def make_plot(self, ax):
+    def make_plot(self, ax, **kwargs):
 
         for j, cen in enumerate(self.binning.signal_offset.center):
 
-            ax.plot(self.loss_vector, self.purities[:, j], label="{}".format(cen))
+            ax.plot(self.loss_vector, self.purities[:, j], **kwargs)
 
             ax.set_xlabel("Signal loss")
             ax.set_ylabel("Purity")
