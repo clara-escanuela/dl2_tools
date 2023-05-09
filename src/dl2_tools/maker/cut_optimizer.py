@@ -65,7 +65,7 @@ class RecoEnergyPointSourceGHCutOptimizer(CutCalculator):
     ).tag(config=True)
 
     alpha = Float(
-        help="Ratio of OFF to ON region",
+        help="Ratio of ON to OFF region",
         default_value=1,
         allow_none=False,
     ).tag(config=True)

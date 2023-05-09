@@ -5,6 +5,8 @@ from .cut_optimizer import (
 )
 from .irf_maker import IRFMaker
 from .roc_maker import ROCMaker
+from .ps_sensitivity_calculator import PSSensitivityCalculator
+
 
 __all__ = [
     "CutCalculator",
@@ -12,4 +14,5 @@ __all__ = [
     "PercentileCutCalculator",
     "IRFMaker",
     "ROCMaker",
+    "PSSensitivityCalculator",
 ]
