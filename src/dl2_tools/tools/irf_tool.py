@@ -245,27 +245,58 @@ class IRFMakerTool(Tool):
         else:
             raise ValueError("signal_type must be either PointSource or Diffuse")
 
-        
         match self.signal_weight_name:
             case "PowerLaw":
                 if self.signal_type == "PointSource":
-                    signal_spectrum=PowerLaw(normalization=self.signal_powerlaw_params[0]*POINT_SOURCE_FLUX_UNIT,index=self.signal_powerlaw_params[1])
+                    signal_spectrum = PowerLaw(
+                        normalization=self.signal_powerlaw_params[0]
+                        * POINT_SOURCE_FLUX_UNIT,
+                        index=self.signal_powerlaw_params[1],
+                    )
                 else:
-                    signal_spectrum=PowerLaw(normalization=self.signal_powerlaw_params[0]*DIFFUSE_FLUX_UNIT,index=self.signal_powerlaw_params[1])
+                    signal_spectrum = PowerLaw(
+                        normalization=self.signal_powerlaw_params[0]
+                        * DIFFUSE_FLUX_UNIT,
+                        index=self.signal_powerlaw_params[1],
+                    )
             case "LogParabola":
                 if self.signal_type == "PointSource":
-                    signal_spectrum=LogParabola(normalization=self.signal_logparabola_params[0]*POINT_SOURCE_FLUX_UNIT,a=self.signal_logparabola_params[1],b=self.signal_logparabola_params[2])
+                    signal_spectrum = LogParabola(
+                        normalization=self.signal_logparabola_params[0]
+                        * POINT_SOURCE_FLUX_UNIT,
+                        a=self.signal_logparabola_params[1],
+                        b=self.signal_logparabola_params[2],
+                    )
                 else:
-                    signal_spectrum=LogParabola(normalization=self.signal_logparabola_params[0]*DIFFUSE_FLUX_UNIT,a=self.signal_logparabola_params[1],b=self.signal_logparabola_params[2])
+                    signal_spectrum = LogParabola(
+                        normalization=self.signal_logparabola_params[0]
+                        * DIFFUSE_FLUX_UNIT,
+                        a=self.signal_logparabola_params[1],
+                        b=self.signal_logparabola_params[2],
+                    )
             case "PowerLawWithExponentialGaussian":
                 if self.signal_type == "PointSource":
-                    signal_spectrum=PowerLawWithExponentialGaussian(normalization=self.signal_plwithexpgauss_params[0]*POINT_SOURCE_FLUX_UNIT,index=self.signal_plwithexpgauss_params[1],f=self.signal_plwithexpgauss_params[2],mu=self.signal_plwithexpgauss_params[3]*u.TeV,sigma=self.signal_plwithexpgauss_params[4]*u.TeV)
+                    signal_spectrum = PowerLawWithExponentialGaussian(
+                        normalization=self.signal_plwithexpgauss_params[0]
+                        * POINT_SOURCE_FLUX_UNIT,
+                        index=self.signal_plwithexpgauss_params[1],
+                        f=self.signal_plwithexpgauss_params[2],
+                        mu=self.signal_plwithexpgauss_params[3] * u.TeV,
+                        sigma=self.signal_plwithexpgauss_params[4] * u.TeV,
+                    )
                 else:
-                    signal_spectrum=PowerLawWithExponentialGaussian(normalization=self.signal_plwithexpgauss_params[0]*DIFFUSE_FLUX_UNIT,index=self.signal_plwithexpgauss_params[1],f=self.signal_plwithexpgauss_params[2],mu=self.signal_plwithexpgauss_params[3]*u.TeV,sigma=self.signal_plwithexpgauss_params[4]*u.TeV)
+                    signal_spectrum = PowerLawWithExponentialGaussian(
+                        normalization=self.signal_plwithexpgauss_params[0]
+                        * DIFFUSE_FLUX_UNIT,
+                        index=self.signal_plwithexpgauss_params[1],
+                        f=self.signal_plwithexpgauss_params[2],
+                        mu=self.signal_plwithexpgauss_params[3] * u.TeV,
+                        sigma=self.signal_plwithexpgauss_params[4] * u.TeV,
+                    )
             case "CRAB_HEGRA":
-                signal_spectrum=CRAB_HEGRA
+                signal_spectrum = CRAB_HEGRA
             case "CRAB_MAGIC_JHEAP_2015":
-                signal_spectrum=CRAB_MAGIC_JHEAP2015
+                signal_spectrum = CRAB_MAGIC_JHEAP2015
             case _:
                 raise ValueError("signal_weight_name is not among the allowed names")
 
@@ -281,20 +312,37 @@ class IRFMakerTool(Tool):
 
             match self.background_weight_name:
                 case "PowerLaw":
-                        background_spectrum=PowerLaw(normalization=self.background_powerlaw_params[0]*DIFFUSE_FLUX_UNIT,index=self.background_powerlaw_params[1])
+                    background_spectrum = PowerLaw(
+                        normalization=self.background_powerlaw_params[0]
+                        * DIFFUSE_FLUX_UNIT,
+                        index=self.background_powerlaw_params[1],
+                    )
                 case "LogParabola":
-                        background_spectrum=LogParabola(normalization=self.background_logparabola_params[0]*DIFFUSE_FLUX_UNIT,a=self.background_logparabola_params[1],b=self.background_logparabola_params[2])
+                    background_spectrum = LogParabola(
+                        normalization=self.background_logparabola_params[0]
+                        * DIFFUSE_FLUX_UNIT,
+                        a=self.background_logparabola_params[1],
+                        b=self.background_logparabola_params[2],
+                    )
                 case "PowerLawWithExponentialGaussian":
-                        background_spectrum=PowerLawWithExponentialGaussian(normalization=self.background_plwithexpgauss_params[0]*DIFFUSE_FLUX_UNIT,index=self.background_plwithexpgauss_params[1],f=self.background_plwithexpgauss_params[2],mu=self.background_plwithexpgauss_params[3]*u.TeV,sigma=self.background_plwithexpgauss_params[4]*u.TeV)
+                    background_spectrum = PowerLawWithExponentialGaussian(
+                        normalization=self.background_plwithexpgauss_params[0]
+                        * DIFFUSE_FLUX_UNIT,
+                        index=self.background_plwithexpgauss_params[1],
+                        f=self.background_plwithexpgauss_params[2],
+                        mu=self.background_plwithexpgauss_params[3] * u.TeV,
+                        sigma=self.background_plwithexpgauss_params[4] * u.TeV,
+                    )
                 case "PDG_ALL_PARTICLE":
-                    background_spectrum=PDG_ALL_PARTICLE
+                    background_spectrum = PDG_ALL_PARTICLE
                 case "IRFDOC_PROTON_SPECTRUM":
-                    background_spectrum=IRFDOC_PROTON_SPECTRUM
+                    background_spectrum = IRFDOC_PROTON_SPECTRUM
                 case "DAMPE_P_He_Spectrum":
-                    background_spectrum=DAMPE_P_He_SPECTRUM
+                    background_spectrum = DAMPE_P_He_SPECTRUM
                 case _:
-                    raise ValueError("background_weight_name is not among the allowed names")
-
+                    raise ValueError(
+                        "background_weight_name is not among the allowed names"
+                    )
 
             self.observation.background.reweight_to(background_spectrum)
 
@@ -303,19 +351,19 @@ class IRFMakerTool(Tool):
 
         for cut_file in self.cuts_files:
             cuts.append(pickle.load(open(cut_file, "rb")))
-        
+
         for signal_cut_file in self.signal_cuts_files:
             signal_cuts.append(pickle.load(open(signal_cut_file, "rb")))
 
         if len(cuts) > 0:
 
-            self.observation.set_signal_cuts(cuts,"reco_source_fov_offset")
+            self.observation.set_signal_cuts(cuts, "reco_source_fov_offset")
             if len(self.background_input_files) > 0:
-                self.observation.set_background_cuts(cuts,"reco_source_fov_offset")
+                self.observation.set_background_cuts(cuts, "reco_source_fov_offset")
 
         if len(signal_cuts) > 0:
 
-            self.observation.set_signal_cuts(signal_cuts,"true_source_fov_offset")
+            self.observation.set_signal_cuts(signal_cuts, "true_source_fov_offset")
 
         self.irf_maker = IRFMaker(parent=self)
         if self.make_roc:
@@ -401,12 +449,39 @@ class IRFMakerTool(Tool):
         if self.make_roc:
 
             roc_fig, roc_ax = plt.subplots()
-            self.roc_maker.make_plot(roc_ax)
+            self.roc_maker.roc_plot_single_energy(
+                roc_ax, energy=0.1 * u.TeV, offset=0.0 * u.deg
+            )
+            self.roc_maker.roc_plot_single_energy(
+                roc_ax, energy=1 * u.TeV, offset=0.0 * u.deg
+            )
+            self.roc_maker.roc_plot_single_energy(
+                roc_ax, energy=10 * u.TeV, offset=0.0 * u.deg
+            )
+            self.roc_maker.roc_plot_single_energy(
+                roc_ax, energy=100 * u.TeV, offset=0.0 * u.deg
+            )
+            roc_ax.legend()
             plt.savefig(os.path.join(self.output_dir, "ROC_plot.pdf"))
 
-            auc_fig, auc_ax = plt.subplots()
-            self.roc_maker.plot_auc(auc_ax)
-            plt.savefig(os.path.join(self.output_dir, "AUC_plot.pdf"))
+            roc_fig_2, roc_ax_2 = plt.subplots()
+
+            self.roc_maker.energy_plot_efficiencies(
+                roc_ax_2, efficiency=0.5, offset=0.0 * u.deg
+            )
+            self.roc_maker.energy_plot_efficiencies(
+                roc_ax_2, efficiency=0.6, offset=0.0 * u.deg
+            )
+            self.roc_maker.energy_plot_efficiencies(
+                roc_ax_2, efficiency=0.7, offset=0.0 * u.deg
+            )
+            self.roc_maker.energy_plot_efficiencies(
+                roc_ax_2, efficiency=0.8, offset=0.0 * u.deg
+            )
+            self.roc_maker.energy_plot_efficiencies(
+                roc_ax_2, efficiency=0.9, offset=0.0 * u.deg
+            )
+            plt.savefig(os.path.join(self.output_dir, "ROC_energy_plot.pdf"))
 
 
 def main():
