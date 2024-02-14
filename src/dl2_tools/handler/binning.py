@@ -36,7 +36,7 @@ class IRFBinning(Component):
     ).tag(config=True)
 
     psf_off_bins = List(
-        default_value=[0.001 * u.deg, 2 * u.deg, 500],
+        default_value=[0.0001 * u.deg, 2 * u.deg, 1000],
         help="Emin, Emax and number of bins",
     ).tag(config=True)
 
@@ -154,11 +154,9 @@ class IRFBinning(Component):
         """
 
         if isinstance(observation.signal, PointSourceSignalSetList):
-
             self.signal_offset = self.make_ps_signal_offset_bins(observation.signal)
 
         else:
-
             self.signal_offset = self.make_diffuse_signal_offset_bins(
                 observation.signal, N_sig_bins
             )
@@ -190,7 +188,7 @@ class IRFBinning(Component):
         max_offset = np.max(radii)
 
         signal_offset = MapAxis(
-            nodes=np.linspace[0.0, max_offset, N_sig_bins],
+            nodes=np.linspace(0.0, max_offset, N_sig_bins),
             name="signal_offset",
             node_type="edges",
             unit="deg",
@@ -223,9 +221,7 @@ class IRFBinning(Component):
         offsets = ps_signal_list.get_offsets()
 
         if offsets[0] == 0.0 * u.deg:
-
             if len(offsets) > 2:
-
                 signal_offset_dummy = MapAxis(
                     nodes=offsets[1:],
                     node_type="center",
@@ -247,7 +243,7 @@ class IRFBinning(Component):
 
             elif len(offsets) == 1:
                 signal_offset = MapAxis.from_edges(
-                    u.Quantity([0.0 * u.deg, 0.1 * u.deg])
+                    u.Quantity([0.0 * u.deg, 0.11 * u.deg])
                 )
 
             elif len(offsets) == 2:
@@ -268,23 +264,27 @@ class IRFBinning(Component):
                 )
 
         else:
+            if len(offsets) > 1:
+                signal_offset = MapAxis(
+                    nodes=offsets,
+                    node_type="center",
+                    unit="deg",
+                )
 
-            sig_offset = MapAxis(
-                nodes=offsets,
-                node_type="center",
-                unit="deg",
-            )
+            else:
+                signal_offset = MapAxis.from_edges(
+                    u.Quantity([offsets[0] - 0.1 * u.deg, offsets[0] + 0.1 * u.deg])
+                )
 
-            if sig_offset.edges[0] < 0.0 * u.deg:
-
+            if signal_offset.edges[0] < 0.0 * u.deg:
                 signal_offset_high = MapAxis(
-                    nodes=sig_offset.edges[2:],
+                    nodes=signal_offset.edges[2:],
                     node_type="edges",
                     unit="deg",
                 )
 
                 signal_offset_low = MapAxis(
-                    nodes=[0.0, sig_offset.edges[1]],
+                    nodes=[0.0, signal_offset.edges[1]],
                     node_type="edges",
                     unit="deg",
                 )
