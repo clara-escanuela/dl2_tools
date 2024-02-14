@@ -3,15 +3,24 @@
 
 import os
 import astropy.units as u
-
-
+import numpy as np
+from pyirf.benchmarks import energy_bias_resolution_from_energy_dispersion
+from scipy.interpolate import RegularGridInterpolator
 class IRFHandler:
     """
     Class that handles all irfs and has methods to save them to file in gammapy formats
     """
 
     def __init__(
-        self, aeff=None, edisp=None, psf=None, bkg_model=None, binning=None
+        self,
+        aeff=None,
+        edisp=None,
+        psf=None,
+        bkg_model=None,
+        energy_bias=None,
+        energy_resolution=None,
+        binning=None,
+        use_ones=False,
     ) -> None:
         """
         Initialize the IRFHandler. Passing IRFs is optional. They can be set later.
@@ -26,6 +35,10 @@ class IRFHandler:
             Point Spread Function in gammapy format, by default None
         bkg_model : gammapy.IRF.Background2D, optional
             Radially symmetric background in gammapy format, by default None
+        energy_bias: scipy.interpolate.RegularGridInterpolator
+            Energy bias as function of true energy and fov offset created from pyirf function
+        energy_resolution: scipy.interpolate.RegularGridInterpolator
+            Energy resolution as function of true energy and fov offset created from pyirf function
         binning : binning.IRFBinning, optional
             An IRFBinning object that contains all relevant axes, by default None
         """
@@ -34,11 +47,18 @@ class IRFHandler:
         self.psf = psf
         self.bkg_model = bkg_model
 
+        self.energy_bias = energy_bias
+
+        self.energy_resolution = energy_resolution
+
         # Metadata:
         # zenith angle
 
         # Binning
         self.binning = binning
+
+        if self.edisp is not None and self.energy_bias is None and self.energy_resolution is None:
+            self.make_energy_bias_resolution_from_edisp(use_ones)
 
     def save_bkg_model_fits(self, savedir, suffix="", overwrite=False):
         assert (
@@ -143,4 +163,66 @@ class IRFHandler:
                 ),
             ),
             overwrite=overwrite,
+        )
+
+    def get_energy_bias(self, energies, fov_offsets):
+
+        interp_grid_energy, interp_grid_offset = np.meshgrid(
+            np.log10(energies.to_value(u.TeV)),
+            fov_offsets.to_value(u.deg),
+            indexing="ij",
+        )
+
+        return self.energy_bias((interp_grid_energy, interp_grid_offset))
+
+    def get_energy_resolution(self, energies, fov_offsets):
+
+        interp_grid_energy, interp_grid_offset = np.meshgrid(
+            np.log10(energies.to_value(u.TeV)),
+            fov_offsets.to_value(u.deg),
+            indexing="ij",
+        )
+
+        return self.energy_resolution((interp_grid_energy, interp_grid_offset))
+    
+    def make_energy_bias_resolution_from_edisp(self,use_ones):
+        
+        if use_ones:
+            bin_width = np.diff(self.edisp.axes["migra"].edges)
+            (
+                pyirf_energy_bias,
+                pyirf_energy_resolution,
+            ) = energy_bias_resolution_from_energy_dispersion(
+                self.edisp.data/bin_width[np.newaxis, :, np.newaxis], self.edisp.axes["migra"].edges
+            )
+        else:
+            (
+                pyirf_energy_bias,
+                pyirf_energy_resolution,
+            ) = energy_bias_resolution_from_energy_dispersion(
+                self.edisp.data, self.edisp.axes["migra"].edges
+            )
+
+        offset_points=self.edisp.axes["offset"].center.to_value(u.deg)
+
+        self.energy_bias = RegularGridInterpolator(
+            (
+                np.log10(self.edisp.axes["energy_true"].center.to_value(u.TeV)),
+                offset_points,
+            ),
+            pyirf_energy_bias,
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
+        )
+
+        self.energy_resolution = RegularGridInterpolator(
+            (
+                np.log10(self.edisp.axes["energy_true"].center.to_value(u.TeV)),
+                offset_points,
+            ),
+            pyirf_energy_resolution,
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
         )

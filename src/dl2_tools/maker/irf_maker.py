@@ -17,6 +17,8 @@ from pyirf.gammapy import (
     create_psf_3d,
     create_background_2d,
 )
+
+from pyirf.benchmarks import energy_bias_resolution_from_energy_dispersion
 import astropy.units as u
 import numpy as np
 
@@ -24,6 +26,7 @@ from ..handler.data_lists import DiffuseSignalSetList
 
 from ctapipe.core import Component
 
+from scipy.interpolate import RegularGridInterpolator
 
 from ..handler.binning import IRFBinning
 
@@ -42,8 +45,9 @@ class IRFMaker(Component):
         irfs = IRFHandler()
 
         if len(observation.signal) > 0:
-
-            irfs.edisp = self._make_Edisps(observation.signal)
+            irfs.edisp, irfs.energy_bias, irfs.energy_resolution = self._make_Edisps(
+                observation.signal
+            )
             irfs.aeff = self._make_Aeff(observation.signal)
             irfs.psf = self._make_psf(observation.signal)
             irfs.binning = self.binning
@@ -54,7 +58,6 @@ class IRFMaker(Component):
         return irfs
 
     def _make_background_model(self, background):
-
         pyirf_bkg = u.Quantity(
             np.zeros(
                 (
@@ -85,11 +88,13 @@ class IRFMaker(Component):
         return gammapy_bkg
 
     def _make_Edisps(self, signal):
-
         if isinstance(signal, DiffuseSignalSetList):
             edisp_pyirf = self._make_Edisps_diffuse(signal[0])
+            offset_points = self.binning.signal_offset.center.to_value(u.deg)
+
         else:
             edisp_pyirf = self._make_Edisps_pl(signal)
+            offset_points = signal.get_offsets().to_value(u.deg)
 
         edisp = create_energy_dispersion_2d(
             edisp_pyirf,
@@ -98,10 +103,38 @@ class IRFMaker(Component):
             self.binning.signal_offset.edges,
         )
 
-        return edisp
+        (
+            pyirf_energy_bias,
+            pyirf_energy_resolution,
+        ) = energy_bias_resolution_from_energy_dispersion(
+            edisp_pyirf, self.binning.migration.edges
+        )
+
+        energy_bias_spline = RegularGridInterpolator(
+            (
+                np.log10(self.binning.energy_true.center.to_value(u.TeV)),
+                offset_points,
+            ),
+            pyirf_energy_bias,
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
+        )
+
+        energy_resolution_spline = RegularGridInterpolator(
+            (
+                np.log10(self.binning.energy_true.center.to_value(u.TeV)),
+                offset_points,
+            ),
+            pyirf_energy_resolution,
+            method="linear",
+            bounds_error=False,
+            fill_value=None,
+        )
+
+        return edisp, energy_bias_spline, energy_resolution_spline
 
     def _make_Edisps_diffuse(self, signal):
-
         edisp_pyirf = energy_dispersion(
             signal.get_masked_events(),
             true_energy_bins=self.binning.energy_true.edges,
@@ -111,7 +144,6 @@ class IRFMaker(Component):
         return edisp_pyirf
 
     def _make_Edisps_pl(self, signal):
-
         edisp_pyirf = np.empty(
             (
                 len(self.binning.energy_true.center),
@@ -121,7 +153,6 @@ class IRFMaker(Component):
         )
 
         for i, _sig in enumerate(signal):
-
             edisp_pyirf[:, :, i] = energy_dispersion(
                 _sig.get_masked_events(),
                 true_energy_bins=self.binning.energy_true.edges,
@@ -132,6 +163,7 @@ class IRFMaker(Component):
                         self.binning.signal_offset.edges[i + 1],
                     ]
                 ),
+                use_event_weights=True
             ).reshape(
                 len(self.binning.energy_true.center), len(self.binning.migration.center)
             )
@@ -139,7 +171,6 @@ class IRFMaker(Component):
         return edisp_pyirf
 
     def _make_Aeff(self, signal):
-
         if isinstance(signal, DiffuseSignalSetList):
             aeff_pyirf = self._make_Aeff_diffuse(signal[0])
         else:
@@ -151,7 +182,6 @@ class IRFMaker(Component):
         return aeff
 
     def _make_Aeff_pl(self, signal):
-
         aeff_pyirf = u.Quantity(
             np.empty(
                 (
@@ -171,7 +201,6 @@ class IRFMaker(Component):
         return aeff_pyirf
 
     def _make_Aeff_diffuse(self, signal):
-
         aeff_pyirf = effective_area_per_energy_and_fov(
             signal.get_masked_events(),
             signal.simulation_info,
@@ -181,7 +210,6 @@ class IRFMaker(Component):
         return aeff_pyirf
 
     def _make_psf(self, signal):
-
         if isinstance(signal, DiffuseSignalSetList):
             psf_pyirf = self._make_psf_diffuse(signal[0])
         else:
@@ -196,7 +224,6 @@ class IRFMaker(Component):
         return psf
 
     def _make_psf_pl(self, signal):
-
         psf_pyirf = u.Quantity(
             np.empty(
                 (
@@ -220,6 +247,7 @@ class IRFMaker(Component):
                             self.binning.signal_offset.edges[i + 1],
                         ]
                     ),
+                    use_event_weights=True
                 ),
                 1,
                 2,
@@ -230,7 +258,6 @@ class IRFMaker(Component):
         return psf_pyirf
 
     def _make_psf_diffuse(self, signal):
-
         psf_pyirf = psf_table(
             signal.get_masked_events(),
             true_energy_bins=self.binning.energy_true.edges,
