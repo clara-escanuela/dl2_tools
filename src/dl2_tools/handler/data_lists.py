@@ -152,7 +152,9 @@ class PointSourceSetList(DataList):
                 x
                 for x in list(self.get_offsets().to_value(u.deg))
                 if list(self.get_offsets().to_value(u.deg)).count(x) == 1
-            ] == self.get_offsets(), "Any offset can appear in the list only once"
+            ] == list(
+                self.get_offsets().to_value(u.deg)
+            ), "Any offset can appear in the list only once"
 
     def __setitem__(self, i, v):
         """Overwrites method of parent class, asserting two main features of PointSourceSetList"""
