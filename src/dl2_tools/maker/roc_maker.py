@@ -69,7 +69,7 @@ class ROCMaker(Component):
             self.reco_energy_axis = MapAxis(
                 nodes=np.geomspace(
                     self.binning.energy_true.edges[0],
-                    self.binning.energy_true.edges[-1],
+                    50,
                     self.n_reco_energy_bins + 1,
                 ),
                 node_type="edges",
@@ -585,3 +585,5 @@ class ROCMaker(Component):
             )
 
         ax.legend()
+
+        return self.reco_energy_axis.center, bkg_effs.reshape(len(self.reco_energy_axis.center),), efficiency
